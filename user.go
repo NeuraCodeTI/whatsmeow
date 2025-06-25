@@ -222,9 +222,9 @@ func (cli *Client) GetUserInfo(jids []types.JID) (map[types.JID]types.UserInfo, 
 		status, _ := child.GetChildByTag("status").Content.([]byte)
 		info.Status = string(status)
 		info.PictureID, _ = child.GetChildByTag("picture").Attrs["id"].(string)
-		info.Devices = parseDeviceList(jid.User, child.GetChildByTag("devices"))
+		info.Devices = parseDeviceList(jid, child.GetChildByTag("devices"))
 		if verifiedName != nil {
-			cli.updateBusinessName(jid, nil, verifiedName.Details.GetVerifiedName())
+			cli.updateBusinessName(context.TODO(), jid, nil, verifiedName.Details.GetVerifiedName())
 		}
 		respData[jid] = info
 	}
@@ -420,6 +420,8 @@ func (cli *Client) GetBusinessProfile(jid types.JID) (*types.BusinessProfile, er
 // GetUserDevices gets the list of devices that the given user has. The input should be a list of
 // regular JIDs, and the output will be a list of AD JIDs. The local device will not be included in
 // the output even if the user's JID is included in the input. All other devices will be included.
+//
+// Deprecated: use GetUserDevicesContext instead.
 func (cli *Client) GetUserDevices(jids []types.JID) ([]types.JID, error) {
 	return cli.GetUserDevicesContext(context.Background(), jids)
 }
@@ -458,7 +460,7 @@ func (cli *Client) GetUserDevicesContext(ctx context.Context, jids []types.JID) 
 			if user.Tag != "user" || !jidOK {
 				continue
 			}
-			userDevices := parseDeviceList(jid.User, user.GetChildByTag("devices"))
+			userDevices := parseDeviceList(jid, user.GetChildByTag("devices"))
 			cli.userDevicesCache[jid] = deviceCache{devices: userDevices, dhash: participantListHashV2(userDevices)}
 			devices = append(devices, userDevices...)
 		}
@@ -559,6 +561,8 @@ func (cli *Client) GetProfilePictureInfo(jid types.JID, params *GetProfilePictur
 	ag := picture.AttrGetter()
 	if ag.OptionalInt("status") == 304 {
 		return nil, nil
+	} else if ag.OptionalInt("status") == 204 {
+		return nil, ErrProfilePictureNotSet
 	}
 	info.ID = ag.String("id")
 	info.URL = ag.String("url")
@@ -570,7 +574,7 @@ func (cli *Client) GetProfilePictureInfo(jid types.JID, params *GetProfilePictur
 	return &info, nil
 }
 
-func (cli *Client) handleHistoricalPushNames(names []*waHistorySync.Pushname) {
+func (cli *Client) handleHistoricalPushNames(ctx context.Context, names []*waHistorySync.Pushname) {
 	if cli.Store.Contacts == nil {
 		return
 	}
@@ -580,22 +584,22 @@ func (cli *Client) handleHistoricalPushNames(names []*waHistorySync.Pushname) {
 			continue
 		}
 		var changed bool
-		if jid, err := types.ParseJID(user.GetId()); err != nil {
-			cli.Log.Warnf("Failed to parse user ID '%s' in push name history sync: %v", user.GetId(), err)
-		} else if changed, _, err = cli.Store.Contacts.PutPushName(jid, user.GetPushname()); err != nil {
-			cli.Log.Warnf("Failed to store push name of %s from history sync: %v", err)
+		if jid, err := types.ParseJID(user.GetID()); err != nil {
+			cli.Log.Warnf("Failed to parse user ID '%s' in push name history sync: %v", user.GetID(), err)
+		} else if changed, _, err = cli.Store.Contacts.PutPushName(ctx, jid, user.GetPushname()); err != nil {
+			cli.Log.Warnf("Failed to store push name of %s from history sync: %v", jid, err)
 		} else if changed {
 			cli.Log.Debugf("Got push name %s for %s in history sync", user.GetPushname(), jid)
 		}
 	}
 }
 
-func (cli *Client) updatePushName(user types.JID, messageInfo *types.MessageInfo, name string) {
+func (cli *Client) updatePushName(ctx context.Context, user types.JID, messageInfo *types.MessageInfo, name string) {
 	if cli.Store.Contacts == nil {
 		return
 	}
 	user = user.ToNonAD()
-	changed, previousName, err := cli.Store.Contacts.PutPushName(user, name)
+	changed, previousName, err := cli.Store.Contacts.PutPushName(ctx, user, name)
 	if err != nil {
 		cli.Log.Errorf("Failed to save push name of %s in device store: %v", user, err)
 	} else if changed {
@@ -609,11 +613,11 @@ func (cli *Client) updatePushName(user types.JID, messageInfo *types.MessageInfo
 	}
 }
 
-func (cli *Client) updateBusinessName(user types.JID, messageInfo *types.MessageInfo, name string) {
+func (cli *Client) updateBusinessName(ctx context.Context, user types.JID, messageInfo *types.MessageInfo, name string) {
 	if cli.Store.Contacts == nil {
 		return
 	}
-	changed, previousName, err := cli.Store.Contacts.PutBusinessName(user, name)
+	changed, previousName, err := cli.Store.Contacts.PutBusinessName(ctx, user, name)
 	if err != nil {
 		cli.Log.Errorf("Failed to save business name of %s in device store: %v", user, err)
 	} else if changed {
@@ -660,7 +664,7 @@ func parseVerifiedNameContent(verifiedNameNode waBinary.Node) (*types.VerifiedNa
 	}, nil
 }
 
-func parseDeviceList(user string, deviceNode waBinary.Node) []types.JID {
+func parseDeviceList(user types.JID, deviceNode waBinary.Node) []types.JID {
 	deviceList := deviceNode.GetChildByTag("device-list")
 	if deviceNode.Tag != "devices" || deviceList.Tag != "device-list" {
 		return nil
@@ -672,7 +676,8 @@ func parseDeviceList(user string, deviceNode waBinary.Node) []types.JID {
 		if device.Tag != "device" || !ok {
 			continue
 		}
-		devices = append(devices, types.NewADJID(user, 0, byte(deviceID)))
+		user.Device = uint16(deviceID)
+		devices = append(devices, user)
 	}
 	return devices
 }
@@ -768,20 +773,20 @@ func (cli *Client) usync(ctx context.Context, jids []types.JID, mode, context st
 				Tag:     "contact",
 				Content: jid.String(),
 			}}
-		case types.DefaultUserServer:
+		case types.DefaultUserServer, types.HiddenUserServer:
 			userList[i].Attrs = waBinary.Attrs{"jid": jid}
 			if jid.IsBot() {
-				var personaId string
+				var personaID string
 				for _, bot := range extras.BotListInfo {
 					if bot.BotJID.User == jid.User {
-						personaId = bot.PersonaID
+						personaID = bot.PersonaID
 					}
 				}
 				userList[i].Content = []waBinary.Node{{
 					Tag: "bot",
 					Content: []waBinary.Node{{
 						Tag:   "profile",
-						Attrs: waBinary.Attrs{"persona_id": personaId},
+						Attrs: waBinary.Attrs{"persona_id": personaID},
 					}},
 				}}
 			}

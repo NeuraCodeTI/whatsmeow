@@ -14,6 +14,7 @@ import (
 
 	waBinary "go.mau.fi/whatsmeow/binary"
 	armadillo "go.mau.fi/whatsmeow/proto"
+	"go.mau.fi/whatsmeow/proto/instamadilloTransportPayload"
 	"go.mau.fi/whatsmeow/proto/waArmadilloApplication"
 	"go.mau.fi/whatsmeow/proto/waConsumerApplication"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -42,6 +43,7 @@ type QR struct {
 // wait for the Connected before trying to send anything.
 type PairSuccess struct {
 	ID           types.JID
+	LID          types.JID
 	BusinessName string
 	Platform     string
 }
@@ -49,6 +51,7 @@ type PairSuccess struct {
 // PairError is emitted when a pair-success event is received from the server, but finishing the pairing locally fails.
 type PairError struct {
 	ID           types.JID
+	LID          types.JID
 	BusinessName string
 	Platform     string
 	Error        error
@@ -317,8 +320,10 @@ type FBMessage struct {
 	// If the message was re-requested from the sender, this is the number of retries it took.
 	RetryCount int
 
-	Transport   *waMsgTransport.MessageTransport     // The first level of wrapping the message was in
-	Application *waMsgApplication.MessageApplication // The second level of wrapping the message was in
+	Transport *waMsgTransport.MessageTransport // The first level of wrapping the message was in
+
+	FBApplication *waMsgApplication.MessageApplication           // The second level of wrapping the message was in, for FB messages
+	IGTransport   *instamadilloTransportPayload.TransportPayload // The second level of wrapping the message was in, for IG messages
 }
 
 func (evt *FBMessage) GetConsumerApplication() *waConsumerApplication.ConsumerApplication {
@@ -436,6 +441,11 @@ type JoinedGroup struct {
 	Reason    string          // If the event was triggered by you using an invite link, this will be "invite".
 	Type      string          // "new" if it's a newly created group.
 	CreateKey types.MessageID // If you created the group, this is the same message ID you passed to CreateGroup.
+	// For type new, the user who created the group and added you to it
+	Sender   *types.JID
+	SenderPN *types.JID
+	Notify   string
+
 	types.GroupInfo
 }
 
@@ -444,6 +454,7 @@ type GroupInfo struct {
 	JID       types.JID  // The group ID in question
 	Notify    string     // Seems like a top-level type for the invite
 	Sender    *types.JID // The user who made the change. Doesn't seem to be present when notify=invite
+	SenderPN  *types.JID // The phone number of the user who made the change, if Sender is a LID.
 	Timestamp time.Time  // The time when the change occurred
 
 	Name      *types.GroupName      // Group name change
