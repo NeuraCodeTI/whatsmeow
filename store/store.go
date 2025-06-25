@@ -128,10 +128,10 @@ type PrivacyTokenStore interface {
 }
 
 type CacheStore interface {
-	GetSessions(addresses []string) map[string][]byte
-	GetIdentityKeys(addresses []string) map[string][32]byte
-	StoreSessions(sessions map[string][]byte) error
-	StoreIdentityKeys(identityKeys map[string][32]byte) error
+	GetSessions(ctx context.Context, addresses []string) map[string][]byte
+	GetIdentityKeys(ctx context.Context, addresses []string) map[string][32]byte
+	StoreSessions(ctx context.Context, sessions map[string][]byte) error
+	StoreIdentityKeys(ctx context.Context, identityKeys map[string][32]byte) error
 }
 type BufferedEvent struct {
 	Plaintext  []byte
@@ -215,7 +215,6 @@ type Device struct {
 	LIDs          LIDStore
 	Cache         CacheStore
 	Container     DeviceContainer
-
 
 	SessionsCache     map[string][]byte
 	IdentityKeysCache map[string][32]byte

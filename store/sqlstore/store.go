@@ -909,7 +909,7 @@ const (
 	`
 )
 
-func (s *SQLStore) GetSessions(addresses []string) (final map[string][]byte) {
+func (s *SQLStore) GetSessions(ctx context.Context, addresses []string) (final map[string][]byte) {
 	query := getCacheSessionsQuery + "("
 	queryParams := make([]interface{}, len(addresses)+1)
 	queryParams[0] = s.JID
@@ -922,7 +922,7 @@ func (s *SQLStore) GetSessions(addresses []string) (final map[string][]byte) {
 		queryParams[index+1] = address
 	}
 	query += ")"
-	rows, err := s.db.Query(query, queryParams...)
+	rows, err := s.db.Query(ctx, query, queryParams...)
 	if err != nil {
 		s.log.Errorf(err.Error())
 		return
@@ -936,7 +936,7 @@ func (s *SQLStore) GetSessions(addresses []string) (final map[string][]byte) {
 	return
 }
 
-func (s *SQLStore) GetIdentityKeys(addresses []string) (final map[string][32]byte) {
+func (s *SQLStore) GetIdentityKeys(ctx context.Context, addresses []string) (final map[string][32]byte) {
 	query := getCacheIdentityKeysQuery + "("
 	queryParams := make([]interface{}, len(addresses)+1)
 	queryParams[0] = s.JID
@@ -949,7 +949,7 @@ func (s *SQLStore) GetIdentityKeys(addresses []string) (final map[string][32]byt
 		queryParams[index+1] = address
 	}
 	query += ")"
-	rows, err := s.db.Query(query, queryParams...)
+	rows, err := s.db.Query(ctx, query, queryParams...)
 	if err != nil {
 		s.log.Errorf(err.Error())
 		return
@@ -964,7 +964,7 @@ func (s *SQLStore) GetIdentityKeys(addresses []string) (final map[string][32]byt
 }
 
 // This Could be better implemented with bulk insert approach
-func (s *SQLStore) StoreSessions(sessions map[string][]byte) error {
+func (s *SQLStore) StoreSessions(ctx context.Context, sessions map[string][]byte) error {
 	queryValues := ""
 	queryParams := make([]interface{}, len(sessions)*3)
 	cnt := 0
@@ -980,12 +980,12 @@ func (s *SQLStore) StoreSessions(sessions map[string][]byte) error {
 		cnt++
 	}
 	query := fmt.Sprintf(storeCacheSessionsQuery, queryValues)
-	_, err := s.db.Exec(query, queryParams...)
+	_, err := s.db.Exec(ctx, query, queryParams...)
 	return err
 }
 
 // This Could be better implemented with bulk insert approach
-func (s *SQLStore) StoreIdentityKeys(identityKeys map[string][32]byte) error {
+func (s *SQLStore) StoreIdentityKeys(ctx context.Context, identityKeys map[string][32]byte) error {
 	queryValues := ""
 	queryParams := make([]interface{}, len(identityKeys)*3)
 	cnt := 0
@@ -1001,6 +1001,6 @@ func (s *SQLStore) StoreIdentityKeys(identityKeys map[string][32]byte) error {
 		cnt++
 	}
 	query := fmt.Sprintf(storeCacheIdentityKeysQuery, queryValues)
-	_, err := s.db.Exec(query, queryParams...)
+	_, err := s.db.Exec(ctx, query, queryParams...)
 	return err
 }

@@ -1185,8 +1185,8 @@ func (cli *Client) encryptMessageForDevices(
 	for _, jid := range allDevices {
 		addresses = append(addresses, jid.SignalAddress().String())
 	}
-	cli.Store.SessionsCache = cli.Store.Cache.GetSessions(addresses)
-	cli.Store.IdentityKeysCache = cli.Store.Cache.GetIdentityKeys(addresses)
+	cli.Store.SessionsCache = cli.Store.Cache.GetSessions(ctx, addresses)
+	cli.Store.IdentityKeysCache = cli.Store.Cache.GetIdentityKeys(ctx, addresses)
 	for _, jid := range allDevices {
 		plaintext := msgPlaintext
 		if (jid.User == ownJID.User || jid.User == ownLID.User) && dsmPlaintext != nil {
@@ -1267,10 +1267,10 @@ func (cli *Client) encryptMessageForDevices(
 	//Store All Sessions at once. This decreases the number of commands to the database from 2*len(allDevices) -> 2 commands only
 	//An alternate, faster method would be using "go StoreSessions" which is incompatible with file databases such as sqlite
 	if len(cli.Store.SessionsCache) > 0 {
-		cli.Store.Cache.StoreSessions(cli.Store.SessionsCache)
+		cli.Store.Cache.StoreSessions(ctx, cli.Store.SessionsCache)
 	}
 	if len(cli.Store.IdentityKeysCache) > 0 {
-		cli.Store.Cache.StoreIdentityKeys(cli.Store.IdentityKeysCache)
+		cli.Store.Cache.StoreIdentityKeys(ctx, cli.Store.IdentityKeysCache)
 	}
 	//clear the cache once the encryption is done to release memory
 	clear(cli.Store.SessionsCache)
