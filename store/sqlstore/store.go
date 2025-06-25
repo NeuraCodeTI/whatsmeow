@@ -966,7 +966,7 @@ func (s *SQLStore) GetIdentityKeys(ctx context.Context, addresses []string) (fin
 // This Could be better implemented with bulk insert approach
 func (s *SQLStore) StoreSessions(ctx context.Context, sessions map[string][]byte) error {
 	queryValues := ""
-	queryParams := make([]interface{}, len(sessions)*3)
+	queryParams := make([]interface{}, len(sessions)*4)
 	cnt := 0
 	for address, session := range sessions {
 		if len(queryValues) > 0 {
@@ -987,7 +987,7 @@ func (s *SQLStore) StoreSessions(ctx context.Context, sessions map[string][]byte
 // This Could be better implemented with bulk insert approach
 func (s *SQLStore) StoreIdentityKeys(ctx context.Context, identityKeys map[string][32]byte) error {
 	queryValues := ""
-	queryParams := make([]interface{}, len(identityKeys)*3)
+	queryParams := make([]interface{}, len(identityKeys)*4)
 	cnt := 0
 	for address, key := range identityKeys {
 		if len(queryValues) > 0 {
