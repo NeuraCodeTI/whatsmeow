@@ -8,6 +8,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.mau.fi/libsignal/ecc"
@@ -52,7 +53,7 @@ func (device *Device) IsTrustedIdentity(ctx context.Context, address *protocol.S
 	//Check if device has a Cache. If not use the default method
 	if device.IdentityKeysCache != nil && len(device.IdentityKeysCache) > 0 {
 		if cache, ok := device.IdentityKeysCache[address.String()]; ok {
-			return cache == identityKey.PublicKey().PublicKey()
+			return cache == identityKey.PublicKey().PublicKey(), nil
 		}
 		return true, nil
 	}
@@ -101,7 +102,7 @@ func (device *Device) LoadSession(ctx context.Context, address *protocol.SignalA
 			sess, err := record.NewSessionFromBytes(rawSess, SignalProtobufSerializer.Session, SignalProtobufSerializer.State)
 			if err != nil {
 				device.Log.Errorf("Failed to deserialize session with %s: %v", address.String(), err)
-				return record.NewSession(SignalProtobufSerializer.Session, SignalProtobufSerializer.State)
+				return record.NewSession(SignalProtobufSerializer.Session, SignalProtobufSerializer.State), nil
 			}
 			return sess, nil
 		}
@@ -143,10 +144,10 @@ func (device *Device) StoreSession(ctx context.Context, address *protocol.Signal
 func (device *Device) ContainsSession(ctx context.Context, remoteAddress *protocol.SignalAddress) (bool, error) {
 	//Check if device has a Cache. If not use the default method
 	if device.SessionsCache != nil && len(device.SessionsCache) > 0 {
-		if err, ok := device.SessionsCache[remoteAddress.String()]; ok {
+		if _, ok := device.SessionsCache[remoteAddress.String()]; ok {
 			return true, nil
 		}
-		return false, fmt.Errorf("failed to check if store has session for %s: %w", addrString, err)
+		return false, fmt.Errorf("failed to check if store has session for %s: %w", errors.New("error verify cache"))
 	}
 	addrString := remoteAddress.String()
 	hasSession, err := device.Sessions.HasSession(ctx, addrString)

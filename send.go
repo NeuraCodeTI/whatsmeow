@@ -1230,8 +1230,8 @@ func (cli *Client) encryptMessageForDevices(
 		//causing the program to use the old approach to get the session and not finding any
 		//causing the program to crash
 		//by filling the cashe with at least one element, the prekeys collected in bundles will also be stored in cache, avoiding this issue
-		cli.Store.SessionsCache[ownID.SignalAddress().String()] = []byte{}
-		cli.Store.IdentityKeysCache[ownID.SignalAddress().String()] = [32]byte{}
+		cli.Store.SessionsCache[ownJID.SignalAddress().String()] = []byte{}
+		cli.Store.IdentityKeysCache[ownJID.SignalAddress().String()] = [32]byte{}
 		bundles, err := cli.fetchPreKeys(ctx, retryDevices)
 		if err != nil {
 			cli.Log.Warnf("Failed to fetch prekeys for %v to retry encryption: %v", retryDevices, err)
@@ -1261,8 +1261,8 @@ func (cli *Client) encryptMessageForDevices(
 			}
 		}
 		//Remove the dummy key
-		delete(cli.Store.SessionsCache, ownID.SignalAddress().String())
-		delete(cli.Store.IdentityKeysCache, ownID.SignalAddress().String())
+		delete(cli.Store.SessionsCache, ownJID.SignalAddress().String())
+		delete(cli.Store.IdentityKeysCache, ownJID.SignalAddress().String())
 	}
 	//Store All Sessions at once. This decreases the number of commands to the database from 2*len(allDevices) -> 2 commands only
 	//An alternate, faster method would be using "go StoreSessions" which is incompatible with file databases such as sqlite
