@@ -147,7 +147,7 @@ func (device *Device) ContainsSession(ctx context.Context, remoteAddress *protoc
 		if _, ok := device.SessionsCache[remoteAddress.String()]; ok {
 			return true, nil
 		}
-		return false, fmt.Errorf("failed to check if store has session for %s: %w", errors.New("error verify cache"))
+		return false, fmt.Errorf("failed to check if store has session for %s: %w", remoteAddress.String(), errors.New("error verify cache"))
 	}
 	addrString := remoteAddress.String()
 	hasSession, err := device.Sessions.HasSession(ctx, addrString)
