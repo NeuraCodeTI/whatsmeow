@@ -34,7 +34,6 @@ func (device *Device) GetLocalRegistrationID() uint32 {
 	return device.RegistrationID
 }
 
-		return nil
 func (device *Device) SaveIdentity(ctx context.Context, address *protocol.SignalAddress, identityKey *identity.Key) error {
 	//If device has a Cache, store it there to insert them all at once later
 	if device.IdentityKeysCache != nil && len(device.IdentityKeysCache) > 0 {
